@@ -4,9 +4,12 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\""
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "staged": "lint-staged"
   },
   "devDependencies": {
+    "lint-staged": "14.0.1",
+    "pre-commit": "1.2.2",
     "prettier": "^3.0.3",
     "turbo": "latest"
   },
@@ -15,5 +18,14 @@
   "workspaces": [
     "apps/*",
     "packages/*"
-  ]
+  ],
+  "pre-commit": [
+    "staged"
+  ],
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,md,html,css}": [
+      "prettier --write "
+      
+    ]
+  }
 }
