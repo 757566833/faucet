@@ -23,8 +23,8 @@
     "staged"
   ],
   "lint-staged": {
-    "*": [
-      "prettier --write \"**/*.{ts,tsx,md}\""
+    "*.{jsx,ts,tsx,md,html,css}": [
+      "prettier --write \"**/*.{jsx,ts,tsx,md,html,css}\""
     ]
   }
 }
