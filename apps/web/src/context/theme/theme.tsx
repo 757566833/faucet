@@ -7,17 +7,17 @@ const theme = createTheme({
   typography: {
    
   },
-  components: {
-    MuiAlert: {
-      styleOverrides: {
-        root: ({ ownerState }) => ({
-          ...(ownerState.severity === 'info' && {
-            backgroundColor: '#60a5fa',
-          }),
-        }),
-      },
-    },
-  },
+  // components: {
+  //   MuiAlert: {
+  //     styleOverrides: {
+  //       root: ({ ownerState }) => ({
+  //         ...(ownerState.severity === 'info' && {
+  //           backgroundColor: '#60a5fa',
+  //         }),
+  //       }),
+  //     },
+  //   },
+  // },
 });
 
 export default theme;
