@@ -1,9 +1,9 @@
 import { createTheme } from "@mui/material/styles";
 
 const theme = createTheme({
-  palette: {
-    mode: "light",
-  },
+  // palette: {
+  //   mode: "light",
+  // },
   typography: {},
   // components: {
   //   MuiAlert: {

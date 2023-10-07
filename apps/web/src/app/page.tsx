@@ -1,95 +1,64 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+"use client";
+import {
+  AppBar,
+  Box,
+  Button,
+  FormControl,
+  IconButton,
+  InputAdornment,
+  InputLabel,
+  OutlinedInput,
+  Stack,
+  Toolbar,
+  Typography,
+} from "@mui/material";
+import { Email, Language, Link, Menu, Web } from "@mui/icons-material";
+import { LoadingButton } from "@mui/lab";
 
 export default function Home() {
   return (
-    <main className={styles.main}>
-      <div className={styles.description}>
-        <p>
-          Get started by editing&nbsp;
-          <code className={styles.code}>src/app/page.tsx</code>
-        </p>
-        <div>
-          <a
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <Box sx={{ flexGrow: 1 }}>
+      <AppBar position="static">
+        <Toolbar>
+          <IconButton
+            size="large"
+            edge="start"
+            color="inherit"
+            aria-label="menu"
+            sx={{ mr: 2 }}
           >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className={styles.vercelLogo}
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
-
-      <div className={styles.center}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className={styles.grid}>
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Docs <span>-&gt;</span>
-          </h2>
-          <p>Find in-depth information about Next.js features and API.</p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Learn <span>-&gt;</span>
-          </h2>
-          <p>Learn about Next.js in an interactive course with&nbsp;quizzes!</p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Templates <span>-&gt;</span>
-          </h2>
-          <p>Explore the Next.js 13 playground.</p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Deploy <span>-&gt;</span>
-          </h2>
-          <p>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
+            <Language />
+          </IconButton>
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+            即将在fzcode获取一些测试币
+          </Typography>
+        </Toolbar>
+      </AppBar>
+      <Stack
+        margin={"0 auto"}
+        width={600}
+        marginTop={6}
+        minHeight={600}
+        spacing={3}
+      >
+        <FormControl variant="outlined">
+          <InputLabel>邮箱</InputLabel>
+          <OutlinedInput
+            endAdornment={
+              <InputAdornment position="end">
+                <LoadingButton>发送验证码</LoadingButton>
+              </InputAdornment>
+            }
+            label="邮箱"
+          />
+        </FormControl>
+        <FormControl variant="outlined">
+          <InputLabel>地址</InputLabel>
+          <OutlinedInput label="地址" />
+        </FormControl>
+        <Button variant="outlined">人机验证</Button>
+        <Button variant="contained">确定</Button>
+      </Stack>
+    </Box>
   );
 }
