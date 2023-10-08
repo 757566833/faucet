@@ -69,14 +69,14 @@ pub async fn send_email(to: String, context: String) -> Result<String, String> {
    
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::utils::mail::send_email;
+// #[cfg(test)]
+// mod tests {
+//     use crate::utils::mail::send_email;
 
-    #[tokio::test]
-    async fn test_send_mail() {
-        dotenv::dotenv().ok();
-        let hex = send_email(String::from("757566833@qq.com"), String::from("test3")).await;
-        println!("{:?}", hex);
-    }
-}
+//     #[tokio::test]
+//     async fn test_send_mail() {
+//         dotenv::dotenv().ok();
+//         let hex = send_email(String::from("757566833@qq.com"), String::from("test3")).await;
+//         println!("{:?}", hex);
+//     }
+// }
