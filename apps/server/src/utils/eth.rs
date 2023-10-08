@@ -3,14 +3,16 @@ use std::env;
 use crate::constant::{FAUCET_NUMBER, PRIVATE_KEY, RPC};
 use ethereum_types::U256;
 use ethers::{
+    middleware::SignerMiddleware,
     providers::{Middleware, Provider},
-    signers::{LocalWallet, Signer}, types::TransactionRequest,
+    signers::LocalWallet,
+    types::TransactionRequest,
 };
 
 use k256::{elliptic_curve::sec1::ToEncodedPoint, AffinePoint, SecretKey};
 use sha3::{Digest, Keccak256};
 
-pub async fn faucet(to:String) -> Result<String, String> {
+pub async fn faucet(to: String) -> Result<String, String> {
     let rpc_result = env::var(RPC);
     let private_key_result = env::var(PRIVATE_KEY);
     let faucet_number_result = env::var(FAUCET_NUMBER);
@@ -44,14 +46,15 @@ pub async fn faucet(to:String) -> Result<String, String> {
             if let Some(target) = target_option {
                 let wallet_result = target.parse::<LocalWallet>();
                 if let Ok(wallet) = wallet_result {
-                    let mut client = SignerMiddleware::new(provider, wallet);
-                    let tx = TransactionRequest::new()
-                        .to(to) // this will use ENS
-                        .value(10000)
-                        .into();
-                    let signature = wallet.sign_transaction(&tx).await.unwrap();
-                    provider.send_transaction(signature);
-                    return Ok(String::from("value"));
+                    let client = SignerMiddleware::new(provider, wallet);
+                    let tx = TransactionRequest::pay(to, faucet_number);
+
+                    //todo tx add gas and gaslimit
+                    let send_result = client.send_transaction(tx, None).await;
+                    match send_result {
+                        Ok(tx) => return Ok(String::from(tx.tx_hash().to_string())),
+                        Err(e) => return Err(e.to_string()),
+                    }
                 }
                 return Err(String::from("no faucet"));
             } else {
@@ -114,21 +117,21 @@ fn get_address_by_private_key(private_key: String) -> Result<String, String> {
 mod tests {
     use crate::utils::eth::get_address_by_private_key;
 
-    #[tokio::test]
-    async fn test_address() {
+    #[test]
+    fn test_address() {
         let hex = get_address_by_private_key(String::from(
             "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
         ))
-        .await
+        
         .unwrap();
         assert_eq!(hex, "f39fd6e51aad88f6f4ce6ab8827279cfffb92266");
     }
-    #[tokio::test]
-    async fn test_0x_address() {
+    #[test]
+    fn test_0x_address() {
         let hex = get_address_by_private_key(String::from(
             "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
         ))
-        .await
+        
         .unwrap();
         assert_eq!(hex, "f39fd6e51aad88f6f4ce6ab8827279cfffb92266");
     }
