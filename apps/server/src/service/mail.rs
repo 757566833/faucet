@@ -1,4 +1,4 @@
-use crate::utils;
+use crate::{utils, CODE_MAP};
 
 pub async fn get_root_code() -> Result<String, String> {
     let time_result = utils::time::get_current_time().await;
@@ -16,13 +16,14 @@ pub async fn get_root_code() -> Result<String, String> {
     return Ok(code);
 }
 
-pub async fn get_verification_code(
+pub async fn send_verification_code(
     hash: String,
     root: String,
     nonce: String,
+    email: String,
 ) -> Result<String, String> {
     let str = format!("{}{}", root, nonce);
-    if utils::sha256::sha256(str) != hash {
+    if utils::sha256::sha256(str) != hash && !hash.starts_with("0000") {
         return Err(String::from("hash is error"));
     }
     let parse_result = utils::aes::decrypt_data(root);
@@ -37,7 +38,15 @@ pub async fn get_verification_code(
             if current_time - parse > 10 {
                 return Err(String::from("timeout"));
             } else {
-                return Ok(String::from("6666"));
+                let rand = utils::rand::rand_num().await;
+                let map_option = CODE_MAP.get();
+                if let Some(arc_map) = map_option {
+                    let mut map = arc_map.lock().await;
+                    map.insert(email.clone(), rand.clone());
+                    return utils::mail::send_email(email, rand).await;
+                } else {
+                    return Err(String::from("cache err"));
+                }
             }
         }
         Err(_) => return Err(String::from("cant get time")),

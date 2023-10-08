@@ -1,3 +1,6 @@
 pub mod aes;
-pub mod  time;
-pub mod  sha256;
+pub mod eth;
+pub mod mail;
+pub mod rand;
+pub mod sha256;
+pub mod time;

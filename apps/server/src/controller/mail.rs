@@ -13,6 +13,7 @@ pub struct VerificationCode {
     hash: String,
     root: String,
     nonce: String,
+    email: String,
 }
 pub async fn get_root_code() -> (StatusCode, Json<Code>) {
     let code_result = service::mail::get_root_code().await;
@@ -24,11 +25,16 @@ pub async fn get_root_code() -> (StatusCode, Json<Code>) {
     }
 }
 
-pub async fn get_verification_code(
+pub async fn send_verification_code(
     Json(payload): Json<VerificationCode>,
 ) -> (StatusCode, Json<Code>) {
-    let code_result =
-        service::mail::get_verification_code(payload.hash, payload.root, payload.nonce).await;
+    let code_result = service::mail::send_verification_code(
+        payload.hash,
+        payload.root,
+        payload.nonce,
+        payload.email,
+    )
+    .await;
     match code_result {
         Ok(code) => {
             return (StatusCode::OK, Json(Code { code }));
