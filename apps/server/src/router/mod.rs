@@ -7,6 +7,7 @@ pub fn init_router() -> Router {
         .route("/", get(controller::html::view_handler))
         .route("/root/code", get(controller::mail::get_root_code))
         .route("/verification/code", post(controller::mail::send_verification_code))
+        .route("/faucet", post(controller::faucet::faucet))
         .fallback(handler_404);
 }
 async fn handler_404() -> impl IntoResponse {
