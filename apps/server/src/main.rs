@@ -12,7 +12,7 @@ use aes_gcm::{
     AesGcm, // Or `Aes128Gcm`
 };
 use dotenv;
-use std::{collections::HashMap, net::SocketAddr, sync::Arc};
+use std::{collections::HashMap, env, net::SocketAddr, sync::Arc};
 use tokio::sync::{Mutex, OnceCell};
 
 mod constant;
@@ -31,8 +31,23 @@ pub static CODE_MAP: OnceCell<Arc<tokio::sync::Mutex<HashMap<String, String>>>> 
 
 #[tokio::main]
 async fn main() {
-   
-    dotenv::dotenv().ok();
+    let dir_result = env::current_dir();
+    let mut  dir;
+    match dir_result {
+        Ok(d) => dir = d,
+        Err(_) => {
+            panic!("1")
+        }
+    }
+    dir.push("apps");
+    dir.push("server");
+    dir.push(".env");
+    println!("{:?}",dir);
+    dotenv::from_filename(dir).ok();
+
+    // for (key, value) in env::vars() {
+    //     println!("{}: {}", key, value);
+    // }
     let key: GenericArray<u8, UInt<UInt<UInt<UInt<UInt<UInt<UTerm, B1>, B0>, B0>, B0>, B0>, B0>> =
         Aes256Gcm::generate_key(OsRng);
 
@@ -49,7 +64,7 @@ async fn main() {
     let router = router::init_router();
 
     // run it
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let addr = SocketAddr::from(([0, 0, 0, 0], 5000));
     println!("listening on {}", addr);
     axum::Server::bind(&addr)
         .serve(router.into_make_service())
@@ -64,9 +79,8 @@ mod tests {
     #[test]
     fn test_env() {
         // dotenv::from_filename(".env.local").ok();
+        // dotenv::
         dotenv::dotenv().ok();
-      
-    
 
         for (key, value) in env::vars() {
             println!("{}: {}", key, value);

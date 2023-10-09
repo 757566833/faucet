@@ -21,3 +21,4 @@ ethers = "2.0"
 k256="0.13.1"
 sha3="0.10.8"
 tiny-keccak = { version = "2.0", features = ["keccak"] }
+tower-http = { version = "0.4.0", features = ["cors"] }

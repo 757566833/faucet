@@ -1,3 +1,7 @@
+use std::time::Duration;
+
+use tokio::{task, time::sleep};
+
 use crate::{utils, CODE_MAP};
 
 pub async fn get_root_code() -> Result<String, String> {
@@ -14,6 +18,16 @@ pub async fn get_root_code() -> Result<String, String> {
         Err(_) => return Err(String::from("cant get code")),
     }
     return Ok(code);
+}
+
+async fn run_del(email: String) {
+    sleep(Duration::from_millis(1000*60*5)).await;
+    let map_option = CODE_MAP.get();
+    if let Some(arc_map) = map_option {
+        let mut map = arc_map.lock().await;
+        map.remove(&email);
+    }
+    
 }
 
 pub async fn send_verification_code(
@@ -43,6 +57,7 @@ pub async fn send_verification_code(
                 if let Some(arc_map) = map_option {
                     let mut map = arc_map.lock().await;
                     map.insert(email.clone(), rand.clone());
+                    task::spawn(run_del(email.clone()));
                     return utils::mail::send_email(email, rand).await;
                 } else {
                     return Err(String::from("cache err"));

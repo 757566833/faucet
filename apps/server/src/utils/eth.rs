@@ -5,8 +5,6 @@ use ethers::{
     middleware::{
         gas_oracle::{GasOracle, ProviderOracle},
         MiddlewareBuilder, SignerMiddleware,
-        gas_escalator::{GeometricGasPrice,Frequency},
-        GasEscalatorMiddleware
     },
     providers::{Middleware, Provider},
     signers::LocalWallet,
@@ -15,9 +13,6 @@ use ethers::{
 
 use k256::{elliptic_curve::sec1::ToEncodedPoint, AffinePoint, SecretKey};
 use sha3::{Digest, Keccak256};
-const EVERY_SECS: u64 = 10;
-const MAX_PRICE: Option<i32> = None;
-const COEFFICIENT: f64 = 1.125;
 pub async fn faucet(to: String) -> Result<String, String> {
     let rpc_result = env::var(RPC);
     let private_key_result = env::var(PRIVATE_KEY);
@@ -25,6 +20,12 @@ pub async fn faucet(to: String) -> Result<String, String> {
     if let (Ok(rpc), Ok(private_key), Ok(faucet_str)) =
         (rpc_result, private_key_result, faucet_number_result)
     {
+        let to_result = hex::decode(to);
+        let to;
+        match to_result {
+            Ok(t) => to = Address::from_slice(&t),
+            Err(e) => return Err(e.to_string()),
+        };
         let faucet_number_result = U256::from_dec_str(&faucet_str);
         if let Ok(faucet_number) = faucet_number_result {
             let provider_result = Provider::try_from(rpc);
@@ -35,35 +36,44 @@ pub async fn faucet(to: String) -> Result<String, String> {
             }
             let keys = private_key.split(",");
             let mut target_private_option = None;
-            let mut target_address = String::from("");
+            let mut target_address_option = None;
+
             for key in keys {
                 let address_result = get_address_by_private_key(String::from(key));
                 if let Ok(address) = address_result {
-                    let balance_result = provider.get_balance(address.clone(), None).await;
+                    let h160_address = Address::from_slice(&address);
+                    let balance_result = provider.get_balance(h160_address, None).await;
                     if let Ok(balance) = balance_result {
                         if balance.ge(&faucet_number) {
                             target_private_option = Some(String::from(key));
-                            target_address = address;
+                            target_address_option = Some(h160_address);
                             break;
                         }
                     }
                 } else {
-                    return Err(String::from("no faucet"));
+                    return Err(String::from(format!(
+                        "private key to address failed {}",
+                        key
+                    )));
                 }
             }
-            if let Some(private_key) = target_private_option {
+
+            if let (Some(private_key), Some(from)) = (target_private_option, target_address_option)
+            {
                 let wallet_result = private_key.parse::<LocalWallet>();
                 if let Ok(wallet) = wallet_result {
-                    let client = SignerMiddleware::new(provider.clone(), wallet);
-                    
-                    let geometric_escalator = GeometricGasPrice::new(COEFFICIENT, EVERY_SECS, MAX_PRICE);
-                    let client = GasEscalatorMiddleware::new(client, geometric_escalator, Frequency::PerBlock);
+                    let signer_client_result = SignerMiddleware::new_with_provider_chain(provider.clone(), wallet).await;
+                    let client;
+                    if let Ok(signer) = signer_client_result  {
+                        client = signer
+                    }else{
+                        return Err(String::from("rpc error"))
+                    }
                     let support_1559 = support_1559().await;
                     let oracle = ProviderOracle::new(provider.clone());
-                    let address = Address::from_slice(target_address.as_bytes());
-                    let nonce_manager = provider.nonce_manager(address);
+                    let nonce_manager = provider.nonce_manager(from);
                     let curr_nonce_result = nonce_manager
-                        .get_transaction_count(address, Some(BlockNumber::Pending.into()))
+                        .get_transaction_count(from, Some(BlockNumber::Pending.into()))
                         .await;
                     let nonce;
                     match curr_nonce_result {
@@ -78,8 +88,8 @@ pub async fn faucet(to: String) -> Result<String, String> {
                         match fee_result {
                             Ok(fee) => {
                                 let tx = TransactionRequest::new()
-                                    .from(address)
-                                    .to(Address::from_slice(to.as_bytes()))
+                                    .from(from)
+                                    .to(to)
                                     .value(faucet_number)
                                     .gas_price(fee)
                                     .nonce(nonce);
@@ -92,8 +102,8 @@ pub async fn faucet(to: String) -> Result<String, String> {
                         match fee_result {
                             Ok((max_fee_per_gas, max_priority_fee_per_gas)) => {
                                 let tx = Eip1559TransactionRequest::new()
-                                    .from(address)
-                                    .to(Address::from_slice(to.as_bytes()))
+                                    .from(from)
+                                    .to(to)
                                     .value(faucet_number)
                                     .max_fee_per_gas(max_fee_per_gas)
                                     .max_priority_fee_per_gas(max_priority_fee_per_gas)
@@ -112,9 +122,9 @@ pub async fn faucet(to: String) -> Result<String, String> {
                     }
                     // return Ok(String::from(""))
                 }
-                return Err(String::from("no faucet"));
+                return Err(String::from("wallet failed"));
             } else {
-                return Err(String::from("no faucet"));
+                return Err(String::from("no faucet all keys"));
             }
 
             // Wallet::new(rng)
@@ -126,7 +136,7 @@ pub async fn faucet(to: String) -> Result<String, String> {
     }
 }
 
-fn get_address_by_private_key(private_key: String) -> Result<String, String> {
+fn get_address_by_private_key(private_key: String) -> Result<Vec<u8>, String> {
     let p;
     if private_key.starts_with("0x") {
         p = String::from(&private_key[2..]);
@@ -165,9 +175,14 @@ fn get_address_by_private_key(private_key: String) -> Result<String, String> {
     // 去掉开头的 02、03、04
     hasher.update(&un_comporess_affine_point[1..]);
     let address_vec: Vec<u8> = hasher.finalize().to_vec();
-    let address = &address_vec[12..];
-    return Ok(hex::encode(address));
+
+    let address = address_vec[12..].to_vec();
+    return Ok(address);
 }
+
+// pub fn address_to_hex(address: Vec<u8>) -> String {
+//     return hex::encode(address);
+// }
 pub async fn support_1559() -> bool {
     let rpc_result = env::var(RPC);
 
@@ -203,13 +218,14 @@ mod tests {
         utils::eth::{get_address_by_private_key, support_1559},
     };
 
+
     #[test]
     fn test_address() {
-        let hex = get_address_by_private_key(String::from(
+        let vec = get_address_by_private_key(String::from(
             "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
         ))
         .unwrap();
-        assert_eq!(hex, "f39fd6e51aad88f6f4ce6ab8827279cfffb92266");
+        assert_eq!(hex::encode(vec), "f39fd6e51aad88f6f4ce6ab8827279cfffb92266");
     }
     #[test]
     fn test_0x_address() {
@@ -217,7 +233,7 @@ mod tests {
             "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80",
         ))
         .unwrap();
-        assert_eq!(hex, "f39fd6e51aad88f6f4ce6ab8827279cfffb92266");
+        assert_eq!(hex::encode(hex), "f39fd6e51aad88f6f4ce6ab8827279cfffb92266");
     }
 
     #[tokio::test]
