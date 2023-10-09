@@ -2,7 +2,10 @@ use std::time::Duration;
 
 use tokio::{task, time::sleep};
 
-use crate::{utils, CODE_MAP};
+use crate::{
+    utils::{self, time::get_current_time},
+    CODE_COOL_DOWN, CODE_MAP,
+};
 
 pub async fn get_root_code() -> Result<String, String> {
     let time_result = utils::time::get_current_time().await;
@@ -21,13 +24,20 @@ pub async fn get_root_code() -> Result<String, String> {
 }
 
 async fn run_del(email: String) {
-    sleep(Duration::from_millis(1000*60*5)).await;
+    sleep(Duration::from_millis(1000 * 60 * 5)).await;
     let map_option = CODE_MAP.get();
     if let Some(arc_map) = map_option {
         let mut map = arc_map.lock().await;
         map.remove(&email);
     }
-    
+}
+async fn run_del_code_cool(email: String) {
+    sleep(Duration::from_millis(1000 * 60)).await;
+    let map_option = CODE_COOL_DOWN.get();
+    if let Some(arc_map) = map_option {
+        let mut map = arc_map.lock().await;
+        map.remove(&email);
+    }
 }
 
 pub async fn send_verification_code(
@@ -36,6 +46,17 @@ pub async fn send_verification_code(
     nonce: String,
     email: String,
 ) -> Result<String, String> {
+    let code_cool_option = CODE_COOL_DOWN.get();
+    let arc_code_cool;
+    match code_cool_option {
+        Some(p) => arc_code_cool = p,
+        None => return Err(String::from("code cool error")),
+    }
+    let code_cool = arc_code_cool.lock().await;
+    let time_option = code_cool.get(&email);
+    if let Some(_) = time_option {
+        return Err(String::from("code cool ing"));
+    }
     let str = format!("{}{}", root, nonce);
     if utils::sha256::sha256(str) != hash && !hash.starts_with("0000") {
         return Err(String::from("hash is error"));
@@ -54,10 +75,15 @@ pub async fn send_verification_code(
             } else {
                 let rand = utils::rand::rand_num().await;
                 let map_option = CODE_MAP.get();
-                if let Some(arc_map) = map_option {
+                let current_time_result = get_current_time().await;
+                if let (Some(arc_map), Ok(current_time)) = (map_option, current_time_result) {
                     let mut map = arc_map.lock().await;
                     map.insert(email.clone(), rand.clone());
                     task::spawn(run_del(email.clone()));
+                    let mut code_cool = arc_code_cool.lock().await;
+                    code_cool.insert(email.clone(), current_time);
+                    task::spawn(run_del_code_cool(email.clone()));
+
                     return utils::mail::send_email(email, rand).await;
                 } else {
                     return Err(String::from("cache err"));

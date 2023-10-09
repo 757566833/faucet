@@ -1,6 +1,9 @@
-use std::env;
+use std::{env, ops::Mul, time::Duration};
 
-use crate::constant::{FAUCET_NUMBER, PRIVATE_KEY, RPC};
+use crate::{
+    constant::{FAUCET_NUMBER, GAS_MULTIPLE, PRIVATE_KEY, RPC},
+    utils, FAUCET_COOL_DOWN,
+};
 use ethers::{
     middleware::{
         gas_oracle::{GasOracle, ProviderOracle},
@@ -13,14 +16,47 @@ use ethers::{
 
 use k256::{elliptic_curve::sec1::ToEncodedPoint, AffinePoint, SecretKey};
 use sha3::{Digest, Keccak256};
-pub async fn faucet(to: String) -> Result<String, String> {
+use tokio::{task, time::sleep};
+
+async fn run_del_faucet_cool(to: String) {
+    sleep(Duration::from_millis(1000 * 60 * 60 * 24)).await;
+    let map_option = FAUCET_COOL_DOWN.get();
+    if let Some(arc_map) = map_option {
+        let mut map = arc_map.lock().await;
+        map.remove(&to);
+    }
+}
+pub async fn faucet(to_str: String) -> Result<String, String> {
+    let faucet_cool_option = FAUCET_COOL_DOWN.get();
+    let arc_faucet_cool;
+    match faucet_cool_option {
+        Some(p) => arc_faucet_cool = p,
+        None => return Err(String::from("faucet cool error")),
+    }
+    let code_cool = arc_faucet_cool.lock().await;
+    let time_option = code_cool.get(&to_str);
+    if let Some(_) = time_option {
+        return Err(String::from("faucet cool ing"));
+    }
     let rpc_result = env::var(RPC);
     let private_key_result = env::var(PRIVATE_KEY);
     let faucet_number_result = env::var(FAUCET_NUMBER);
-    if let (Ok(rpc), Ok(private_key), Ok(faucet_str)) =
-        (rpc_result, private_key_result, faucet_number_result)
-    {
-        let to_result = hex::decode(to);
+    let gas_multiple_result = env::var(GAS_MULTIPLE);
+    let current_time_result = utils::time::get_current_time().await;
+    if let (Ok(rpc), Ok(private_key), Ok(faucet_str), Ok(gas_multiple), Ok(current_time)) = (
+        rpc_result,
+        private_key_result,
+        faucet_number_result,
+        gas_multiple_result,
+        current_time_result,
+    ) {
+        let multiple_result = U256::from_dec_str(&gas_multiple);
+        let multiple;
+        match multiple_result {
+            Ok(t) => multiple = t,
+            Err(e) => return Err(e.to_string()),
+        };
+        let to_result = hex::decode(to_str.clone());
         let to;
         match to_result {
             Ok(t) => to = Address::from_slice(&t),
@@ -62,12 +98,13 @@ pub async fn faucet(to: String) -> Result<String, String> {
             {
                 let wallet_result = private_key.parse::<LocalWallet>();
                 if let Ok(wallet) = wallet_result {
-                    let signer_client_result = SignerMiddleware::new_with_provider_chain(provider.clone(), wallet).await;
+                    let signer_client_result =
+                        SignerMiddleware::new_with_provider_chain(provider.clone(), wallet).await;
                     let client;
-                    if let Ok(signer) = signer_client_result  {
+                    if let Ok(signer) = signer_client_result {
                         client = signer
-                    }else{
-                        return Err(String::from("rpc error"))
+                    } else {
+                        return Err(String::from("rpc error"));
                     }
                     let support_1559 = support_1559().await;
                     let oracle = ProviderOracle::new(provider.clone());
@@ -82,6 +119,7 @@ pub async fn faucet(to: String) -> Result<String, String> {
                     }
                     // provider.estimate_eip1559_fees(estimator)
                     // let tx = TransactionRequest::pay(to, faucet_number);
+
                     let send_result;
                     if !support_1559 {
                         let fee_result = oracle.fetch().await;
@@ -91,7 +129,7 @@ pub async fn faucet(to: String) -> Result<String, String> {
                                     .from(from)
                                     .to(to)
                                     .value(faucet_number)
-                                    .gas_price(fee)
+                                    .gas_price(fee.mul(multiple))
                                     .nonce(nonce);
                                 send_result = client.send_transaction(tx, None).await;
                             }
@@ -105,8 +143,10 @@ pub async fn faucet(to: String) -> Result<String, String> {
                                     .from(from)
                                     .to(to)
                                     .value(faucet_number)
-                                    .max_fee_per_gas(max_fee_per_gas)
-                                    .max_priority_fee_per_gas(max_priority_fee_per_gas)
+                                    .max_fee_per_gas(max_fee_per_gas.mul(multiple))
+                                    .max_priority_fee_per_gas(
+                                        max_priority_fee_per_gas.mul(multiple),
+                                    )
                                     .nonce(nonce);
                                 send_result = client.send_transaction(tx, None).await;
                             }
@@ -117,7 +157,12 @@ pub async fn faucet(to: String) -> Result<String, String> {
                     //todo tx add gas and gaslimit
                     // let send_result = client.send_transaction(tx, None).await;
                     match send_result {
-                        Ok(tx) => return Ok(String::from(tx.tx_hash().to_string())),
+                        Ok(tx) => {
+                            let mut faucet_cool = arc_faucet_cool.lock().await;
+                            faucet_cool.insert(to_str.clone(), current_time);
+                            task::spawn(run_del_faucet_cool(to_str));
+                            return Ok(String::from(tx.tx_hash().to_string()));
+                        }
                         Err(e) => return Err(e.to_string()),
                     }
                     // return Ok(String::from(""))
@@ -217,7 +262,6 @@ mod tests {
         constant::RPC,
         utils::eth::{get_address_by_private_key, support_1559},
     };
-
 
     #[test]
     fn test_address() {

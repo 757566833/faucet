@@ -29,10 +29,15 @@ pub static NONCE_ONCE: OnceCell<GenericArray<u8, UInt<UInt<UInt<UInt<UTerm, B1>,
 pub static CODE_MAP: OnceCell<Arc<tokio::sync::Mutex<HashMap<String, String>>>> =
     OnceCell::const_new();
 
+pub static CODE_COOL_DOWN: OnceCell<Arc<tokio::sync::Mutex<HashMap<String, u64>>>> =
+    OnceCell::const_new();
+pub static FAUCET_COOL_DOWN: OnceCell<Arc<tokio::sync::Mutex<HashMap<String, u64>>>> =
+    OnceCell::const_new();
+
 #[tokio::main]
 async fn main() {
     let dir_result = env::current_dir();
-    let mut  dir;
+    let mut dir;
     match dir_result {
         Ok(d) => dir = d,
         Err(_) => {
@@ -42,7 +47,7 @@ async fn main() {
     dir.push("apps");
     dir.push("server");
     dir.push(".env");
-    println!("{:?}",dir);
+    println!("{:?}", dir);
     dotenv::from_filename(dir).ok();
 
     // for (key, value) in env::vars() {
@@ -60,6 +65,10 @@ async fn main() {
     let _ = NONCE_ONCE.set(nonce);
 
     let _ = CODE_MAP.set(Arc::new(Mutex::new(HashMap::new())));
+
+    let _ = CODE_COOL_DOWN.set(Arc::new(Mutex::new(HashMap::new())));
+
+    let _ = FAUCET_COOL_DOWN.set(Arc::new(Mutex::new(HashMap::new())));
     // build our application with a route
     let router = router::init_router();
 
