@@ -17,6 +17,7 @@ use tokio::sync::{Mutex, OnceCell};
 
 mod constant;
 mod controller;
+mod error;
 mod router;
 mod service;
 mod utils;
@@ -28,10 +29,14 @@ pub static NONCE_ONCE: OnceCell<GenericArray<u8, UInt<UInt<UInt<UInt<UTerm, B1>,
 
 pub static CODE_MAP: OnceCell<Arc<tokio::sync::Mutex<HashMap<String, String>>>> =
     OnceCell::const_new();
-
+// 验证码发了以后 第二次发送的冷却时间
 pub static CODE_COOL_DOWN: OnceCell<Arc<tokio::sync::Mutex<HashMap<String, u64>>>> =
     OnceCell::const_new();
-pub static FAUCET_COOL_DOWN: OnceCell<Arc<tokio::sync::Mutex<HashMap<String, u64>>>> =
+// 成功领取eth后邮箱的冷却时间
+pub static FAUCET_EMAIL_COOL_DOWN: OnceCell<Arc<tokio::sync::Mutex<HashMap<String, u64>>>> =
+    OnceCell::const_new();
+// 成功领取eth后地址的冷却时间
+pub static FAUCET_ADDRESS_COOL_DOWN: OnceCell<Arc<tokio::sync::Mutex<HashMap<String, u64>>>> =
     OnceCell::const_new();
 
 #[tokio::main]
@@ -68,7 +73,9 @@ async fn main() {
 
     let _ = CODE_COOL_DOWN.set(Arc::new(Mutex::new(HashMap::new())));
 
-    let _ = FAUCET_COOL_DOWN.set(Arc::new(Mutex::new(HashMap::new())));
+    let _ = FAUCET_EMAIL_COOL_DOWN.set(Arc::new(Mutex::new(HashMap::new())));
+
+    let _ = FAUCET_ADDRESS_COOL_DOWN.set(Arc::new(Mutex::new(HashMap::new())));
     // build our application with a route
     let router = router::init_router();
 

@@ -1,5 +1,6 @@
 use axum::{http::StatusCode, Json};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde_json::Value;
 
 use crate::service;
 
@@ -10,12 +11,8 @@ pub struct Faucet {
     code: String,
 }
 
-#[derive(Serialize)]
-pub struct Response {
-    hash: String,
-}
 
-pub async fn faucet(Json(payload): Json<Faucet>) -> (StatusCode, Json<Response>) {
+pub async fn faucet(Json(payload): Json<Faucet>) -> (StatusCode, Json<Value>) {
     let address;
     if payload.address.starts_with("0x") {
         address = String::from(&payload.address[2..]);
@@ -24,9 +21,21 @@ pub async fn faucet(Json(payload): Json<Faucet>) -> (StatusCode, Json<Response>)
     }
     let hash_result = service::faucet::faucet(address, payload.email, payload.code).await;
     match hash_result {
-        Ok(hash) => {
-            return (StatusCode::OK, Json(Response { hash }));
+        Ok(tx) => {
+            return (
+                StatusCode::OK,
+                Json(serde_json::json!( {
+                   "hash":tx
+                })),
+            );
         }
-        Err(e) => return (StatusCode::BAD_REQUEST, Json(Response { hash: e })),
+        Err(e) => {
+            return (
+                e.status,
+                Json(serde_json::json!({
+                    "message": e.message,
+                })),
+            )
+        }
     }
 }

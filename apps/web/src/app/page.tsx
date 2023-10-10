@@ -18,6 +18,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { faucet, getRoot, getVerificationCode } from "@/services";
 import { useForm } from "react-hook-form";
 import { isAddress } from "ethers";
+import { enqueueSnackbar } from "notistack";
 async function digestMessage(message: string) {
   const msgUint8 = new TextEncoder().encode(message); // encode as (utf-8) Uint8Array
   const hashBuffer = await crypto.subtle.digest("SHA-256", msgUint8); // hash the message
@@ -47,14 +48,19 @@ export default function Home() {
   const cacheRef = useRef("");
   const [loading, setLoading] = useState(false);
   const handleSendSms = useCallback(async () => {
-    let bool = verifyEmail(getValues().email);
+    let email = getValues().email;
+    let bool = verifyEmail(email);
     if (!bool) {
       setError("email", { type: "required", message: "Email is required" });
       return;
     }
     setLoading(true);
-    const root = await getRoot();
+    const root = await getRoot({ email });
     if (root) {
+      enqueueSnackbar({
+        message: "人机验证后会发送验证码",
+        variant: "success",
+      });
       workerRef.current?.postMessage(root.code);
       cacheRef.current = root.code;
     } else {

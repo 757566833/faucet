@@ -1,17 +1,18 @@
 use crate::controller;
 
 use axum::{
-    http::{HeaderValue, Method, StatusCode, self},
+    http::{self, HeaderValue, Method, StatusCode},
     response::IntoResponse,
     routing::{get, post},
     Router,
 };
+
 use tower_http::cors::CorsLayer;
 
 pub fn init_router() -> Router {
     return Router::new()
         .route("/", get(controller::html::view_handler))
-        .route("/root/code", get(controller::mail::get_root_code))
+        .route("/root/code", post(controller::mail::get_root_code))
         .route(
             "/verification/code",
             post(controller::mail::send_verification_code),

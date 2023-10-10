@@ -22,7 +22,15 @@ export class Http {
     try {
       const response = await fetch(fetchUrl, { headers: allHeaders });
       if (response.status >= 300) {
-        enqueueSnackbar({ message: "服务异常", variant: "error" });
+        try {
+          // return (await response.json()) as T;
+          let json = (await response.json()) as { message: string };
+          enqueueSnackbar({ message: json.message, variant: "error" });
+          return;
+        } catch (error) {
+          enqueueSnackbar({ message: "服务异常", variant: "error" });
+          return;
+        }
       } else {
         try {
           return (await response.json()) as T;

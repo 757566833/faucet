@@ -14,7 +14,7 @@ export const sha256 = async (root: string) => {
   do {
     hash = await digestMessage(`${root}${nonce}`);
     nonce++;
-  } while (!hash.startsWith("0000"));
+  } while (!hash.startsWith("00000"));
   let endTime = new Date().getTime();
   console.log("time", endTime - startTime);
   return { hash, nonce };
