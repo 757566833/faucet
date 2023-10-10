@@ -41,19 +41,9 @@ pub static FAUCET_ADDRESS_COOL_DOWN: OnceCell<Arc<tokio::sync::Mutex<HashMap<Str
 
 #[tokio::main]
 async fn main() {
-    let dir_result = env::current_dir();
-    let mut dir;
-    match dir_result {
-        Ok(d) => dir = d,
-        Err(_) => {
-            panic!("1")
-        }
-    }
-    dir.push("apps");
-    dir.push("server");
-    dir.push(".env");
-    println!("{:?}", dir);
-    dotenv::from_filename(dir).ok();
+   
+    // dotenv::from_filename(dir).ok();
+    dotenv::dotenv().ok();
 
     // for (key, value) in env::vars() {
     //     println!("{}: {}", key, value);

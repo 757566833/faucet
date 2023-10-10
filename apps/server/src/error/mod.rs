@@ -157,6 +157,32 @@ impl From<std::time::SystemTimeError> for ResponseError {
         }
     }
 }
+impl From<axum::http::Error> for ResponseError {
+    fn from(error: axum::http::Error) -> Self {
+        ResponseError {
+            message: error.to_string(),
+            status: StatusCode::BAD_REQUEST,
+        }
+    }
+}
+impl From<hyper::Error> for ResponseError {
+    fn from(error: hyper::Error) -> Self {
+        ResponseError {
+            message: error.to_string(),
+            status: StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+}
+impl From<serde_json::Error> for ResponseError {
+    fn from(error: serde_json::Error) -> Self {
+        ResponseError {
+            message: error.to_string(),
+            status: StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+}
+
+
 //  邮箱格式错误
 pub fn email_format_error() -> ResponseError {
     ResponseError {
@@ -173,71 +199,91 @@ pub fn env_error() -> ResponseError {
     }
 }
 
-pub fn insufficient_account_balance_error() -> ResponseError { ResponseError {
-    message: String::from("Insufficient account balance"),
-    status: StatusCode::INTERNAL_SERVER_ERROR,
-}}
-pub fn aes_cache_error() -> ResponseError { ResponseError {
-    message: String::from("can't find aes once"),
-    status: StatusCode::INTERNAL_SERVER_ERROR,
-}}
+pub fn insufficient_account_balance_error() -> ResponseError {
+    ResponseError {
+        message: String::from("Insufficient account balance"),
+        status: StatusCode::INTERNAL_SERVER_ERROR,
+    }
+}
+pub fn aes_cache_error() -> ResponseError {
+    ResponseError {
+        message: String::from("can't find aes once"),
+        status: StatusCode::INTERNAL_SERVER_ERROR,
+    }
+}
 /**
  * 验证码map 缺失 错误 正常不会触发
  */
-pub fn code_cache_error() -> ResponseError { ResponseError {
-    message: String::from("can't find code map"),
-    status: StatusCode::INTERNAL_SERVER_ERROR,
-}}
+pub fn code_cache_error() -> ResponseError {
+    ResponseError {
+        message: String::from("can't find code map"),
+        status: StatusCode::INTERNAL_SERVER_ERROR,
+    }
+}
 /**
  * 针对于同一个邮箱 发送有冷却时间
  */
-pub fn code_cooling_error() -> ResponseError { ResponseError {
-    message: String::from("The function of sending verification code is cooling down"),
-    status: StatusCode::BAD_REQUEST,
-}}
+pub fn code_cooling_error() -> ResponseError {
+    ResponseError {
+        message: String::from("The function of sending verification code is cooling down"),
+        status: StatusCode::BAD_REQUEST,
+    }
+}
 
 /**
  * 水龙头领取后 邮箱的冷却 map 缺失 正常不会触发
  */
-pub fn email_cool_cache_error() -> ResponseError { ResponseError {
-    message: String::from("can't find email send map"),
-    status: StatusCode::INTERNAL_SERVER_ERROR,
-}}
+pub fn email_cool_cache_error() -> ResponseError {
+    ResponseError {
+        message: String::from("can't find email send map"),
+        status: StatusCode::INTERNAL_SERVER_ERROR,
+    }
+}
 
 /**
  * 水龙头成功领取 邮箱的冷却 map
  */
-pub fn email_cooling_error() -> ResponseError { ResponseError {
-    message: String::from("Email is cooling down"),
-    status: StatusCode::BAD_REQUEST,
-}}
+pub fn email_cooling_error() -> ResponseError {
+    ResponseError {
+        message: String::from("Email is cooling down"),
+        status: StatusCode::BAD_REQUEST,
+    }
+}
 /**
  * 水龙头领取后 地址的冷却 map 缺失 正常不会触发
  */
-pub fn address_cool_cache_error() -> ResponseError { ResponseError {
-    message: String::from("can't find address send map"),
-    status: StatusCode::INTERNAL_SERVER_ERROR,
-}}
+pub fn address_cool_cache_error() -> ResponseError {
+    ResponseError {
+        message: String::from("can't find address send map"),
+        status: StatusCode::INTERNAL_SERVER_ERROR,
+    }
+}
 
 /**
  * 水龙头领取后 地址的冷却
  */
-pub fn address_cooling_error() -> ResponseError { ResponseError {
-    message: String::from("Address is cooling down"),
-    status: StatusCode::BAD_REQUEST,
-}}
+pub fn address_cooling_error() -> ResponseError {
+    ResponseError {
+        message: String::from("Address is cooling down"),
+        status: StatusCode::BAD_REQUEST,
+    }
+}
 /**
  * 前段请求的发送邮箱验证码 hash验证失败
  */
-pub fn verify_hash_error() -> ResponseError { ResponseError {
-    message: String::from("hash is error"),
-    status: StatusCode::BAD_REQUEST,
-}}
+pub fn verify_hash_error() -> ResponseError {
+    ResponseError {
+        message: String::from("hash is error"),
+        status: StatusCode::BAD_REQUEST,
+    }
+}
 
-pub fn timeout_error() -> ResponseError { ResponseError {
-    message: String::from("timeout"),
-    status: StatusCode::BAD_REQUEST,
-}}
+pub fn timeout_error() -> ResponseError {
+    ResponseError {
+        message: String::from("timeout"),
+        status: StatusCode::BAD_REQUEST,
+    }
+}
 
 /**
  * 为幽灵依赖准备

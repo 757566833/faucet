@@ -31,7 +31,7 @@ pub async fn send_verification_code(
     if current_time - parse > 60 {
         return Err(timeout_error());
     } else {
-        let rand = utils::rand::rand_num().await;
+        let rand = utils::rand::rand_num_str();
 
         set_code(email.clone(), rand.clone()).await?;
 

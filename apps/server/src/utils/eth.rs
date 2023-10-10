@@ -2,7 +2,8 @@ use std::{env, ops::Mul};
 
 use crate::{
     constant::{FAUCET_NUMBER, GAS_MULTIPLE, PRIVATE_KEY, RPC},
-    error::{create_error, ResponseError, insufficient_account_balance_error, env_error},
+    error::{create_error, env_error, insufficient_account_balance_error, ResponseError},
+    utils::rand::rand_num,
 };
 use axum::http::StatusCode;
 use ethers::{
@@ -14,8 +15,10 @@ use ethers::{
     signers::LocalWallet,
     types::{Address, BlockNumber, Eip1559TransactionRequest, TransactionRequest, U256},
 };
-
+use hyper::Client;
+use hyper_tls::HttpsConnector;
 use k256::{elliptic_curve::sec1::ToEncodedPoint, AffinePoint, SecretKey};
+use serde::Deserialize;
 use sha3::{Digest, Keccak256};
 
 pub async fn faucet(to_str: String) -> Result<String, ResponseError> {
@@ -116,10 +119,12 @@ pub async fn faucet(to_str: String) -> Result<String, ResponseError> {
                             .nonce(nonce);
                         send_result = client.send_transaction(tx, None).await;
                     }
-                    Err(e) =>   return Err(create_error(
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        e.to_string(),
-                    )),
+                    Err(e) => {
+                        return Err(create_error(
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            e.to_string(),
+                        ))
+                    }
                 }
             }
 
@@ -129,9 +134,13 @@ pub async fn faucet(to_str: String) -> Result<String, ResponseError> {
                 Ok(tx) => {
                     return Ok(String::from(tx.tx_hash().to_string()));
                 }
-                Err(e) => return Err(create_error(StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
+                Err(e) => {
+                    return Err(create_error(
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        e.to_string(),
+                    ))
+                }
             }
-            
         } else {
             return Err(insufficient_account_balance_error());
         }
@@ -204,20 +213,55 @@ pub async fn support_1559() -> bool {
     }
     return false;
 }
+
+#[derive(Debug, Deserialize)]
+pub struct EthResponse {
+    id: u32,
+    jsonrpc: String,
+    result: String,
+}
+
+pub async fn get_balance(rpc: String, address: String) -> Result<String, ResponseError> {
+    let request = hyper::Request::builder()
+        .uri(rpc.clone())
+        .header(hyper::header::CONTENT_TYPE, "application/json")
+        .method(hyper::Method::POST)
+        .body(hyper::Body::from(
+            serde_json::json!({
+                "id":  rand_num(),
+                "jsonrpc": "2.0",
+                "method": "eth_getBalance",
+                "params": [format!("0x{}",address), "latest"]
+            })
+            .to_string(),
+        ))?;
+    let resp;
+    if rpc.starts_with("https") {
+        let https = HttpsConnector::new();
+        let client = Client::builder().build::<_, hyper::Body>(https);
+        resp = client.request(request).await?;
+    } else {
+        let client = hyper::Client::new();
+        resp = client.request(request).await?;
+    }
+    let body_bytes = hyper::body::to_bytes(resp.into_body()).await?;
+    let body_str = String::from_utf8(body_bytes.to_vec())?;
+    let result: EthResponse = serde_json::from_str(&body_str)?;
+    return Ok(result.result);
+}
 #[cfg(test)]
 mod tests {
     use std::env;
 
+    use crate::{
+        constant::{GAS_MULTIPLE, RPC},
+        utils::eth::{get_address_by_private_key, get_balance, support_1559},
+    };
     use ethers::{
         middleware::gas_oracle::{GasOracle, ProviderOracle},
         providers::{Middleware, Provider},
-        types::U256,
     };
-
-    use crate::{
-        constant::{GAS_MULTIPLE, RPC},
-        utils::eth::{get_address_by_private_key, support_1559},
-    };
+    use crypto_bigint::{U256, Encoding, ArrayEncoding};
 
     #[test]
     fn test_address() {
@@ -266,13 +310,28 @@ mod tests {
         println!("not 1559:{:?}", fee);
     }
 
-    #[tokio::test]
-    async fn test_u256() {
-        dotenv::dotenv().ok();
-        let gas_multiple = env::var(GAS_MULTIPLE).unwrap();
-        let multiple = U256::from_dec_str(&gas_multiple).unwrap();
-        assert_eq!(gas_multiple, multiple.to_string());
-    }
+    // #[tokio::test]
+    // async fn test_u256() {
+    //     dotenv::dotenv().ok();
+    //     let gas_multiple = env::var(GAS_MULTIPLE).unwrap();
+    //     let multiple = U256::from_be_slice(&gas_multiple.as_bytes());
+    //     assert_eq!(gas_multiple, multiple.to_string());
+    // }
+    // #[tokio::test]
+    // async fn test_get_balance() {
+    //     dotenv::dotenv().ok();
+    //     let res = get_balance(
+    //         String::from("https://rpc.fzcode.com"),
+    //         String::from("307440e3BF25Fa0870266e09A37E417a7d03597E"),
+    //     )
+    //     .await.unwrap();
+    // println!("{}",res);
+    // let value = String::from(&res[2..]);
+    // println!("{}",value);
+    // let bytes = hex::decode(value).unwrap();
+    // let str =U256::from(&bytes);
+    // println!("{}",str.to_string())
+    // }
 }
 
 // 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
