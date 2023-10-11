@@ -25,3 +25,5 @@ tower-http = { version = "0.4.0", features = ["cors"] }
 hyper = { version = "0.14", features = ["full"] }
 hyper-tls = "0.5.0"
 crypto-bigint = "0.5.3"
+uint = "0.8"
+num-bigint = "0.4"

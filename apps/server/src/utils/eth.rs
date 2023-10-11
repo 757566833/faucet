@@ -1,4 +1,4 @@
-use std::{env, ops::Mul};
+use std::{env, ops::Mul, str::FromStr};
 
 use crate::{
     constant::{FAUCET_NUMBER, GAS_MULTIPLE, PRIVATE_KEY, RPC},
@@ -35,9 +35,9 @@ pub async fn faucet(to_str: String) -> Result<String, ResponseError> {
         let multiple = U256::from_dec_str(&gas_multiple)?;
         let to_vec = hex::decode(to_str.clone())?;
         let to = Address::from_slice(&to_vec);
-        let faucet_number = U256::from_dec_str(&faucet_str)?;
+        let faucet_number = hex_to_big_num(faucet_str)?;
 
-        let provider_result = Provider::try_from(rpc);
+        let provider_result = Provider::try_from(rpc.clone());
         let provider;
         match provider_result {
             Ok(p) => provider = p,
@@ -54,14 +54,12 @@ pub async fn faucet(to_str: String) -> Result<String, ResponseError> {
 
         for key in keys {
             let address = get_address_by_private_key(String::from(key))?;
-            let h160_address = Address::from_slice(&address);
-            let balance_result = provider.get_balance(h160_address, None).await;
-            if let Ok(balance) = balance_result {
-                if balance.ge(&faucet_number) {
-                    target_private_option = Some(String::from(key));
-                    target_address_option = Some(h160_address);
-                    break;
-                }
+            let address_hex = hex::encode(address);
+            let balance = get_balance(rpc.clone(), address_hex.clone()).await?;
+            if balance.ge(&faucet_number) {
+                target_private_option = Some(String::from(key));
+                target_address_option = Some(address_hex);
+                break;
             }
         }
 
@@ -80,70 +78,68 @@ pub async fn faucet(to_str: String) -> Result<String, ResponseError> {
                 }
             }
             let support_1559 = support_1559().await;
-            let oracle = ProviderOracle::new(provider.clone());
-            let nonce_manager = provider.nonce_manager(from);
-            let nonce = nonce_manager
-                .get_transaction_count(from, Some(BlockNumber::Pending.into()))
-                .await?;
-
-            let send_result;
-            if !support_1559 {
-                let fee_result = oracle.fetch().await;
-                match fee_result {
-                    Ok(fee) => {
-                        let tx = TransactionRequest::new()
-                            .from(from)
-                            .to(to)
-                            .value(faucet_number)
-                            .gas_price(fee.mul(multiple))
-                            .nonce(nonce);
-                        send_result = client.send_transaction(tx, None).await;
-                    }
-                    Err(e) => {
-                        return Err(create_error(
-                            StatusCode::INTERNAL_SERVER_ERROR,
-                            e.to_string(),
-                        ))
-                    }
-                }
-            } else {
-                let fee_result = oracle.estimate_eip1559_fees().await;
-                match fee_result {
-                    Ok((max_fee_per_gas, max_priority_fee_per_gas)) => {
-                        let tx = Eip1559TransactionRequest::new()
-                            .from(from)
-                            .to(to)
-                            .value(faucet_number)
-                            .max_fee_per_gas(max_fee_per_gas.mul(multiple))
-                            .max_priority_fee_per_gas(max_priority_fee_per_gas.mul(multiple))
-                            .nonce(nonce);
-                        send_result = client.send_transaction(tx, None).await;
-                    }
-                    Err(e) => {
-                        return Err(create_error(
-                            StatusCode::INTERNAL_SERVER_ERROR,
-                            e.to_string(),
-                        ))
-                    }
-                }
-            }
+           
+            let nonce = get_nonce(rpc, from.to_string()).await?;
+            return Ok(String::from("value"));
+            // let send_result;
+            // if !support_1559 {
+            //     let gas_price = get_gas_price(rpc).await?;
+            //     // match fee_result {
+            //     //     Ok(fee) => {
+            //     //         let tx = TransactionRequest::new()
+            //     //             .from(from)
+            //     //             .to(to)
+            //     //             .value(500000)
+            //     //             .gas_price(fee.mul(multiple))
+            //     //             .nonce(nonce);
+            //     //         send_result = client.send_transaction(tx, None).await;
+            //     //     }
+            //     //     Err(e) => {
+            //     //         return Err(create_error(
+            //     //             StatusCode::INTERNAL_SERVER_ERROR,
+            //     //             e.to_string(),
+            //     //         ))
+            //     //     }
+            //     // }
+            // } else {
+            //     // let fee_result = oracle.estimate_eip1559_fees().await;
+            //     // match fee_result {
+            //     //     Ok((max_fee_per_gas, max_priority_fee_per_gas)) => {
+            //     //         let tx = Eip1559TransactionRequest::new()
+            //     //             .from(from)
+            //     //             .to(to)
+            //     //             .value(500000)
+            //     //             .max_fee_per_gas(max_fee_per_gas.mul(multiple))
+            //     //             .max_priority_fee_per_gas(max_priority_fee_per_gas.mul(multiple))
+            //     //             .nonce(nonce);
+            //     //         send_result = client.send_transaction(tx, None).await;
+            //     //     }
+            //     //     Err(e) => {
+            //     //         return Err(create_error(
+            //     //             StatusCode::INTERNAL_SERVER_ERROR,
+            //     //             e.to_string(),
+            //     //         ))
+            //     //     }
+            //     // }
+            // }
 
             //todo tx add gas and gaslimit
             // let send_result = client.send_transaction(tx, None).await;
-            match send_result {
-                Ok(tx) => {
-                    return Ok(String::from(tx.tx_hash().to_string()));
-                }
-                Err(e) => {
-                    return Err(create_error(
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        e.to_string(),
-                    ))
-                }
-            }
+            // match send_result {
+            //     Ok(tx) => {
+            //         return Ok(String::from(tx.tx_hash().to_string()));
+            //     }
+            //     Err(e) => {
+            //         return Err(create_error(
+            //             StatusCode::INTERNAL_SERVER_ERROR,
+            //             e.to_string(),
+            //         ))
+            //     }
+            // }
         } else {
             return Err(insufficient_account_balance_error());
         }
+        // return Ok(String::from("value"))
 
         // if let Ok(faucet_number) = faucet_number_result {
         //     // Wallet::new(rng)
@@ -196,32 +192,34 @@ pub async fn support_1559() -> bool {
     let rpc_result = env::var(RPC);
 
     if let Ok(rpc) = rpc_result {
-        let provider_result = Provider::try_from(rpc);
-        if let Ok(provider) = provider_result {
-            let block_number_result = provider.get_block_number().await;
-            if let Ok(block_number) = block_number_result {
-                let lastest_result = provider.get_block(block_number).await;
-                if let Ok(Some(latest)) = lastest_result {
-                    let base_fee = latest.base_fee_per_gas;
-                    match base_fee {
-                        Some(_) => return true,
-                        None => return false,
-                    }
-                }
-            }
+        let latest_result = get_latest_block(rpc).await;
+        let latest;
+
+        match latest_result {
+            Ok(b) => latest = b,
+            Err(_) => return false,
+        }
+
+        let base_fee = latest.result.base_fee_per_gas;
+        match base_fee {
+            Some(_) => return true,
+            None => return false,
         }
     }
     return false;
 }
 
 #[derive(Debug, Deserialize)]
-pub struct EthResponse {
+pub struct EthResponse<T> {
     id: u32,
     jsonrpc: String,
-    result: String,
+    result: T,
 }
 
-pub async fn get_balance(rpc: String, address: String) -> Result<String, ResponseError> {
+pub async fn get_balance(
+    rpc: String,
+    address_hex: String,
+) -> Result<num_bigint::BigUint, ResponseError> {
     let request = hyper::Request::builder()
         .uri(rpc.clone())
         .header(hyper::header::CONTENT_TYPE, "application/json")
@@ -231,7 +229,7 @@ pub async fn get_balance(rpc: String, address: String) -> Result<String, Respons
                 "id":  rand_num(),
                 "jsonrpc": "2.0",
                 "method": "eth_getBalance",
-                "params": [format!("0x{}",address), "latest"]
+                "params": [format!("0x{}",address_hex), "latest"]
             })
             .to_string(),
         ))?;
@@ -246,22 +244,205 @@ pub async fn get_balance(rpc: String, address: String) -> Result<String, Respons
     }
     let body_bytes = hyper::body::to_bytes(resp.into_body()).await?;
     let body_str = String::from_utf8(body_bytes.to_vec())?;
-    let result: EthResponse = serde_json::from_str(&body_str)?;
-    return Ok(result.result);
+    let result: EthResponse<String> = serde_json::from_str(&body_str)?;
+    return hex_to_big_num(result.result);
+}
+
+pub async fn get_block_number(rpc: String) -> Result<num_bigint::BigUint, ResponseError> {
+    // let id= rand_num();
+    // println!("{}", id);
+    let request = hyper::Request::builder()
+        .uri(rpc.clone())
+        .header(hyper::header::CONTENT_TYPE, "application/json")
+        .method(hyper::Method::POST)
+        .body(hyper::Body::from(
+            serde_json::json!({
+                "id":  rand_num(),
+                "jsonrpc": "2.0",
+                "method": "eth_blockNumber",
+                "params": []
+            })
+            .to_string(),
+        ))?;
+    let resp;
+    if rpc.starts_with("https") {
+        let https = HttpsConnector::new();
+        let client = Client::builder().build::<_, hyper::Body>(https);
+        resp = client.request(request).await?;
+    } else {
+        let client = hyper::Client::new();
+        resp = client.request(request).await?;
+    }
+    let body_bytes = hyper::body::to_bytes(resp.into_body()).await?;
+    let body_str = String::from_utf8(body_bytes.to_vec())?;
+    let result: EthResponse<String> = serde_json::from_str(&body_str)?;
+    return hex_to_big_num(result.result);
+}
+
+pub async fn get_nonce(rpc: String, address_hex: String) -> Result<num_bigint::BigUint, ResponseError> {
+    // let id= rand_num();
+    // println!("{}", id);
+    let address;
+    if address_hex.starts_with("0x"){
+        address = format!("0x{}",address_hex)
+    }else{
+        address = address_hex
+    }
+    let request = hyper::Request::builder()
+        .uri(rpc.clone())
+        .header(hyper::header::CONTENT_TYPE, "application/json")
+        .method(hyper::Method::POST)
+        .body(hyper::Body::from(
+            serde_json::json!({
+                "id":  rand_num(),
+                "jsonrpc": "2.0",
+                "method": "eth_getTransactionCount",
+                "params": [address,"latest"]
+            })
+            .to_string(),
+        ))?;
+    let resp;
+    if rpc.starts_with("https") {
+        let https = HttpsConnector::new();
+        let client = Client::builder().build::<_, hyper::Body>(https);
+        resp = client.request(request).await?;
+    } else {
+        let client = hyper::Client::new();
+        resp = client.request(request).await?;
+    }
+    let body_bytes = hyper::body::to_bytes(resp.into_body()).await?;
+    let body_str = String::from_utf8(body_bytes.to_vec())?;
+    let result: EthResponse<String> = serde_json::from_str(&body_str)?;
+    return hex_to_big_num(result.result);
+}
+
+#[derive(Debug, Deserialize)]
+pub struct EthBlock {
+    #[serde(rename = "baseFeePerGas")]
+    base_fee_per_gas: Option<String>,
+}
+
+pub async fn get_latest_block(rpc: String) -> Result<EthResponse<EthBlock>, ResponseError> {
+    // let id= rand_num();
+    // println!("{}", id);
+    let request = hyper::Request::builder()
+        .uri(rpc.clone())
+        .header(hyper::header::CONTENT_TYPE, "application/json")
+        .method(hyper::Method::POST)
+        .body(hyper::Body::from(
+            serde_json::json!({
+                "id":  rand_num(),
+                "jsonrpc": "2.0",
+                "method": "eth_getBlockByNumber",
+                "params": ["latest",false]
+            })
+            .to_string(),
+        ))?;
+    let resp;
+    if rpc.starts_with("https") {
+        let https = HttpsConnector::new();
+        let client = Client::builder().build::<_, hyper::Body>(https);
+        resp = client.request(request).await?;
+    } else {
+        let client = hyper::Client::new();
+        resp = client.request(request).await?;
+    }
+    let body_bytes = hyper::body::to_bytes(resp.into_body()).await?;
+    let body_str = String::from_utf8(body_bytes.to_vec())?;
+    let result: EthResponse<EthBlock> = serde_json::from_str(&body_str)?;
+    return Ok(result);
+}
+
+
+
+pub async fn get_max_priority_fee_per_gas(rpc: String) -> Result<num_bigint::BigUint, ResponseError> {
+    // let id= rand_num();
+    // println!("{}", id);
+    let request = hyper::Request::builder()
+        .uri(rpc.clone())
+        .header(hyper::header::CONTENT_TYPE, "application/json")
+        .method(hyper::Method::POST)
+        .body(hyper::Body::from(
+            serde_json::json!({
+                "id":  rand_num(),
+                "jsonrpc": "2.0",
+                "method": "eth_maxPriorityFeePerGas",
+                "params": []
+            })
+            .to_string(),
+        ))?;
+    let resp;
+    if rpc.starts_with("https") {
+        let https = HttpsConnector::new();
+        let client = Client::builder().build::<_, hyper::Body>(https);
+        resp = client.request(request).await?;
+    } else {
+        let client = hyper::Client::new();
+        resp = client.request(request).await?;
+    }
+    let body_bytes = hyper::body::to_bytes(resp.into_body()).await?;
+    let body_str = String::from_utf8(body_bytes.to_vec())?;
+    println!("{}",body_str);
+    let result: EthResponse<String> = serde_json::from_str(&body_str)?;
+    return Ok(hex_to_big_num(result.result)?);
+}
+
+pub async fn get_gas_price(rpc: String) -> Result<num_bigint::BigUint, ResponseError> {
+    // let id= rand_num();
+    // println!("{}", id);
+    let request = hyper::Request::builder()
+        .uri(rpc.clone())
+        .header(hyper::header::CONTENT_TYPE, "application/json")
+        .method(hyper::Method::POST)
+        .body(hyper::Body::from(
+            serde_json::json!({
+                "id":  rand_num(),
+                "jsonrpc": "2.0",
+                "method": "eth_gasPrice",
+                "params": []
+            })
+            .to_string(),
+        ))?;
+    let resp;
+    if rpc.starts_with("https") {
+        let https = HttpsConnector::new();
+        let client = Client::builder().build::<_, hyper::Body>(https);
+        resp = client.request(request).await?;
+    } else {
+        let client = hyper::Client::new();
+        resp = client.request(request).await?;
+    }
+    let body_bytes = hyper::body::to_bytes(resp.into_body()).await?;
+    let body_str = String::from_utf8(body_bytes.to_vec())?;
+    println!("{}",body_str);
+    let result: EthResponse<String> = serde_json::from_str(&body_str)?;
+    return Ok(hex_to_big_num(result.result)?);
+}
+fn hex_to_big_num(num: String) -> Result<num_bigint::BigUint, ResponseError> {
+    let mut hex = num.clone();
+    if hex.starts_with("0x") {
+        hex = (hex[2..]).to_string();
+    }
+    if hex.len() % 2 != 0 {
+        hex = format!("0{}", hex)
+    }
+    let vec = hex::decode(hex)?;
+    return Ok(num_bigint::BigUint::from_bytes_be(&vec));
 }
 #[cfg(test)]
 mod tests {
-    use std::env;
+    use std::{env, str::FromStr};
 
     use crate::{
         constant::{GAS_MULTIPLE, RPC},
-        utils::eth::{get_address_by_private_key, get_balance, support_1559},
+        utils::eth::{get_address_by_private_key, get_balance, get_block_number, support_1559, get_gas_price, get_max_priority_fee_per_gas},
     };
+    use crypto_bigint::{ArrayEncoding, Encoding, U256};
     use ethers::{
         middleware::gas_oracle::{GasOracle, ProviderOracle},
         providers::{Middleware, Provider},
     };
-    use crypto_bigint::{U256, Encoding, ArrayEncoding};
+    use num_bigint::BigUint;
 
     #[test]
     fn test_address() {
@@ -310,28 +491,62 @@ mod tests {
         println!("not 1559:{:?}", fee);
     }
 
-    // #[tokio::test]
-    // async fn test_u256() {
-    //     dotenv::dotenv().ok();
-    //     let gas_multiple = env::var(GAS_MULTIPLE).unwrap();
-    //     let multiple = U256::from_be_slice(&gas_multiple.as_bytes());
-    //     assert_eq!(gas_multiple, multiple.to_string());
-    // }
-    // #[tokio::test]
-    // async fn test_get_balance() {
-    //     dotenv::dotenv().ok();
-    //     let res = get_balance(
-    //         String::from("https://rpc.fzcode.com"),
-    //         String::from("307440e3BF25Fa0870266e09A37E417a7d03597E"),
-    //     )
-    //     .await.unwrap();
-    // println!("{}",res);
-    // let value = String::from(&res[2..]);
-    // println!("{}",value);
-    // let bytes = hex::decode(value).unwrap();
-    // let str =U256::from(&bytes);
-    // println!("{}",str.to_string())
-    // }
+    #[tokio::test]
+    async fn test_u256() {
+        dotenv::dotenv().ok();
+        let gas_multiple = env::var(GAS_MULTIPLE).unwrap();
+        let multiple = BigUint::from_str(&gas_multiple).unwrap();
+        assert_eq!(gas_multiple, multiple.to_string());
+    }
+    #[tokio::test]
+    async fn test_get_balance() {
+        dotenv::dotenv().ok();
+        let big_int = get_balance(
+            String::from("https://rpc.fzcode.com"),
+            String::from("307440e3BF25Fa0870266e09A37E417a7d03597E"),
+        )
+        .await
+        .unwrap();
+        println!("BigUint: {}", big_int);
+
+        println!("BigUint: {}", big_int * BigUint::from_str("2").unwrap());
+    }
+    #[tokio::test]
+    async fn test_get_block_number() {
+        dotenv::dotenv().ok();
+        let res = get_block_number(String::from("https://rpc.fzcode.com"))
+            .await
+            .unwrap();
+        println!("block number: {}", res);
+        // 0x188e2
+    }
+
+    #[test]
+    fn test_odd_vec_hex() {
+        let vec = hex::decode("0189c6").unwrap();
+        let num = num_bigint::BigUint::from_bytes_be(&vec);
+        println!("{}", num)
+    }
+    #[tokio::test]
+    async fn test_get_gas_price() {
+        dotenv::dotenv().ok();
+        let res = get_gas_price(String::from("https://rpc.fzcode.com"))
+            .await
+            .unwrap();
+        println!("gas price: {}", res);
+        // 0x188e2
+    }
+    #[tokio::test]
+    async fn test_get_max_priority_fee_per_gas() {
+        dotenv::dotenv().ok();
+        let res = get_max_priority_fee_per_gas(String::from("https://rpc.fzcode.com"))
+            .await
+            .unwrap();
+        println!("get_max_priority_fee_per_gas: {}", res);
+        // 0x188e2
+    }
+    
+    // get_max_priority_fee_per_gas
 }
 
 // 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80

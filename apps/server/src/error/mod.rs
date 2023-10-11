@@ -181,6 +181,15 @@ impl From<serde_json::Error> for ResponseError {
         }
     }
 }
+impl From<num_bigint::ParseBigIntError> for ResponseError {
+    fn from(error: num_bigint::ParseBigIntError) -> Self {
+        ResponseError {
+            message: error.to_string(),
+            status: StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+}
+
 
 
 //  邮箱格式错误
