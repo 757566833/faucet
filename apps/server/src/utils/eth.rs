@@ -421,20 +421,24 @@ pub async fn get_gas_price(rpc: String) -> Result<num_bigint::BigUint, ResponseE
 
 #[derive(Debug)]
 pub struct LegacyTransaction {
-    to: Vec<u8>,
-    from: Vec<u8>,
-    gas_price: num_bigint::BigUint,
-    value: num_bigint::BigUint,
+    pub to: Vec<u8>,
+    pub from: Vec<u8>,
+    pub gas_limit: Option<num_bigint::BigUint>,
+    pub gas_price: num_bigint::BigUint,
+    pub value: num_bigint::BigUint,
+    pub nonce: Option<num_bigint::BigUint>,
 }
 #[derive(Debug)]
 pub struct Eip1559transaction {
-    to: Vec<u8>,
-    from: Vec<u8>,
-    max_fee_per_gas: num_bigint::BigUint,
-    max_priority_fee_per_gas: num_bigint::BigUint,
-    value: num_bigint::BigUint,
+    pub to: Vec<u8>,
+    pub from: Vec<u8>,
+    pub gas_limit: Option<num_bigint::BigUint>,
+    pub max_fee_per_gas: num_bigint::BigUint,
+    pub max_priority_fee_per_gas: num_bigint::BigUint,
+    pub value: num_bigint::BigUint,
+    pub nonce: Option<num_bigint::BigUint>,
 }
-enum TransactionRequest {
+pub enum TransactionRequest {
     Legacy(LegacyTransaction),
     Eip1559(Eip1559transaction),
 }
@@ -582,7 +586,6 @@ async fn estimate_gas(
 //     let result: EthResponse<String> = serde_json::from_str(&body_str)?;
 //     return Ok(hex_to_big_num(result.result)?);
 // }
-
 
 fn hex_to_big_num(num: String) -> Result<num_bigint::BigUint, ResponseError> {
     let mut hex = num.clone();
@@ -767,9 +770,10 @@ mod tests {
             request = utils::eth::TransactionRequest::Eip1559(Eip1559transaction {
                 from,
                 to,
+                nonce:None,
+                gas_limit:None,
                 max_fee_per_gas: (max_priority_fee_per_gas.clone()
-                    + hex_to_big_num(base_fee_per_gas).unwrap())
-                ,
+                    + hex_to_big_num(base_fee_per_gas).unwrap()),
                 max_priority_fee_per_gas: max_priority_fee_per_gas,
                 value: hex_to_big_num(faucet_number).unwrap(),
             });
@@ -778,6 +782,8 @@ mod tests {
             request = utils::eth::TransactionRequest::Legacy(LegacyTransaction {
                 from,
                 to,
+                gas_limit:None,
+                nonce:None,
                 gas_price: gas_price,
                 value: hex_to_big_num(faucet_number).unwrap(),
             });
