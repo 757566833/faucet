@@ -2960,6 +2960,7 @@ dependencies = [
  "lettre",
  "num-bigint",
  "rand",
+ "rlp",
  "serde",
  "serde_json",
  "sha2",
