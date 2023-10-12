@@ -93,3 +93,6 @@ mod tests {
         }
     }
 }
+
+// {"from":"0x307440e3bf25fa0870266e09a37e417a7d03597e","maxFeePerGas":"0x3b9aca07","maxPriorityFeePerGas":"0x3b9aca00","to":"0xa303721f08b85af1fdf7c57152b9e31d4bca397b","type":"0x2","value":"0x4563918244f40000"}
+// {"method":"eth_estimateGas","params":[{"type":"0x2","maxFeePerGas":"0x3b9aca07","maxPriorityFeePerGas":"0x3b9aca00","value":"0x4563918244f40000","from":"0x307440e3bf25fa0870266e09a37e417a7d03597e","to":"0xa303721f08b85af1fdf7c57152b9e31d4bca397b"}],"id":50,"jsonrpc":"2.0"}
