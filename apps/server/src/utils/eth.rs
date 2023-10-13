@@ -420,32 +420,28 @@ pub async fn get_gas_price(rpc: String) -> Result<num_bigint::BigUint, ResponseE
 }
 
 #[derive(Debug)]
-pub struct LegacyTransaction {
+pub struct EstimateGasLegacyTransaction {
     pub to: Vec<u8>,
     pub from: Vec<u8>,
-    pub gas_limit: Option<num_bigint::BigUint>,
     pub gas_price: num_bigint::BigUint,
     pub value: num_bigint::BigUint,
-    pub nonce: Option<num_bigint::BigUint>,
 }
 #[derive(Debug)]
-pub struct Eip1559transaction {
+pub struct EstimateGasEip1559transaction {
     pub to: Vec<u8>,
     pub from: Vec<u8>,
-    pub gas_limit: Option<num_bigint::BigUint>,
     pub max_fee_per_gas: num_bigint::BigUint,
     pub max_priority_fee_per_gas: num_bigint::BigUint,
     pub value: num_bigint::BigUint,
-    pub nonce: Option<num_bigint::BigUint>,
 }
-pub enum TransactionRequest {
-    Legacy(LegacyTransaction),
-    Eip1559(Eip1559transaction),
+pub enum EstimateGasTransactionRequest {
+    Legacy(EstimateGasLegacyTransaction),
+    Eip1559(EstimateGasEip1559transaction),
 }
 
 async fn estimate_gas(
     rpc: String,
-    request: TransactionRequest,
+    request: EstimateGasTransactionRequest,
 ) -> Result<num_bigint::BigUint, ResponseError> {
     // let id= rand_num();
     // println!("{}", id);
@@ -453,7 +449,7 @@ async fn estimate_gas(
     let params;
 
     match request {
-        TransactionRequest::Legacy(legacy_transaction) => {
+        EstimateGasTransactionRequest::Legacy(legacy_transaction) => {
             let from = hex::encode(legacy_transaction.from);
             let to = hex::encode(legacy_transaction.to);
             let gas_price = legacy_transaction.gas_price.to_str_radix(16);
@@ -466,7 +462,7 @@ async fn estimate_gas(
                 "to":format!("0x{}", to),
             })
         }
-        TransactionRequest::Eip1559(eip1559_transaction) => {
+        EstimateGasTransactionRequest::Eip1559(eip1559_transaction) => {
             let from = hex::encode(eip1559_transaction.from);
             let to = hex::encode(eip1559_transaction.to);
             let max_priority_fee_per_gas = eip1559_transaction
@@ -609,8 +605,8 @@ mod tests {
             eth::{
                 estimate_gas, get_address_by_private_key, get_balance, get_block_number,
                 get_gas_price, get_latest_base_fee_per_gas, get_latest_block,
-                get_max_priority_fee_per_gas, get_nonce, hex_to_big_num, Eip1559transaction,
-                LegacyTransaction,
+                get_max_priority_fee_per_gas, get_nonce, hex_to_big_num, EstimateGasEip1559transaction,
+                EstimateGasLegacyTransaction,
             },
         },
     };
@@ -767,11 +763,9 @@ mod tests {
         let faucet_number = env::var(FAUCET_NUMBER).unwrap();
         if let Some(base_fee_per_gas) = latest_base_fee_per_gas {
             let max_priority_fee_per_gas = get_max_priority_fee_per_gas(rpc.clone()).await.unwrap();
-            request = utils::eth::TransactionRequest::Eip1559(Eip1559transaction {
+            request = utils::eth::EstimateGasTransactionRequest::Eip1559(EstimateGasEip1559transaction {
                 from,
                 to,
-                nonce:None,
-                gas_limit:None,
                 max_fee_per_gas: (max_priority_fee_per_gas.clone()
                     + hex_to_big_num(base_fee_per_gas).unwrap()),
                 max_priority_fee_per_gas: max_priority_fee_per_gas,
@@ -779,11 +773,9 @@ mod tests {
             });
         } else {
             let gas_price = get_gas_price(rpc.clone()).await.unwrap();
-            request = utils::eth::TransactionRequest::Legacy(LegacyTransaction {
+            request = utils::eth::EstimateGasTransactionRequest::Legacy(EstimateGasLegacyTransaction {
                 from,
                 to,
-                gas_limit:None,
-                nonce:None,
                 gas_price: gas_price,
                 value: hex_to_big_num(faucet_number).unwrap(),
             });
