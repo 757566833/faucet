@@ -183,6 +183,7 @@ fn get_address_by_private_key(private_key: String) -> Result<Vec<u8>, ResponseEr
 
     let address = address_vec[12..].to_vec();
     return Ok(address);
+    // 0x02f8728009843b9aca00843b9aca0782520894a303721f08b85af1fdf7c57152b9e31d4bca397b884563918244f4000080c080a0859d562fb534c5288e8b328ea7c199a815092184f4c963c1e9e4d2b23469567ba076ed5614f8afb4c6d092f98cf915253b219ee7aeb4ed5184acccb0da39e2df76
 }
 
 // pub fn address_to_hex(address: Vec<u8>) -> String {

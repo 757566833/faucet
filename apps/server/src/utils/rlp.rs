@@ -145,8 +145,10 @@ pub fn encode(request: RlpTransactionRequest) -> Vec<u8> {
             rlp_stream.append_list(&e);
             // Get the RLP-encoded bytes
             let rlp_encoded = rlp_stream.as_raw();
+            let mut resut = rlp_encoded.to_owned();
+            resut.splice(..0, vec![0x02]);
 
-            return rlp_encoded.to_owned();
+            return resut;
         }
     }
 }
@@ -195,7 +197,8 @@ mod tests {
             max_priority_fee_per_gas,
             value,
         }));
-        assert_eq!("ef8009843b9aca00843b9aca0782520894a303721f08b85af1fdf7c57152b9e31d4bca397b884563918244f4000080c0",hex::encode(rlp_encoded))
+        // println!("{}",hex::encode(rlp_encoded));
+        assert_eq!("02ef8009843b9aca00843b9aca0782520894a303721f08b85af1fdf7c57152b9e31d4bca397b884563918244f4000080c0",hex::encode(rlp_encoded))
         // 默认b7+
     }
     #[test]
