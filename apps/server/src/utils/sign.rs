@@ -113,12 +113,13 @@ mod tests {
         let e: Vec<u8> = vec![];
         rlp_stream.append_list(&e);
         // Get the RLP-encoded bytes
-        rlp_stream.append(&to);
-        rlp_stream.append(&to);
-        rlp_stream.append(&to);
+        rlp_stream.append(&big_num_to_vec(num_bigint::BigUint::from(id.to_byte())));
+        rlp_stream.append(&result.r().to_bytes().to_vec());
+        rlp_stream.append(&result.s().to_bytes().to_vec());
         let rlp_encoded = rlp_stream.as_raw();
         let mut resut = rlp_encoded.to_owned();
         resut.splice(..0, vec![0x02]);
+        println!("{}",hex::encode(resut));
         // 默认b7+
         // 0x02f8728009843b9aca00843b9aca0782520894a303721f08b85af1fdf7c57152b9e31d4bca397b884563918244f4000080c080a0177940d29ad84fc6a11a9d38f93d108c08364404e8498ed61ad68c3651782074a02b5ee943d3507640a969ba2e71988678e86e4bd1f37afecfaca25cc8983cc340
     }
