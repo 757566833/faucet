@@ -35,15 +35,7 @@ impl From<lettre::transport::smtp::Error> for ResponseError {
         }
     }
 }
-// GAS MULTIPLE 转为 U256 的错误
-impl From<ethers::abi::ethereum_types::FromDecStrErr> for ResponseError {
-    fn from(error: ethers::abi::ethereum_types::FromDecStrErr) -> Self {
-        ResponseError {
-            message: error.to_string(),
-            status: StatusCode::INTERNAL_SERVER_ERROR,
-        }
-    }
-}
+
 // 地址hex 转为对象错误
 impl From<hex::FromHexError> for ResponseError {
     fn from(error: hex::FromHexError) -> Self {
@@ -64,57 +56,29 @@ impl From<k256::elliptic_curve::Error> for ResponseError {
     }
 }
 /**
- * 私钥生成钱包失败
+ * 私钥生成签名对象失败
  */
-impl From<ethers::signers::WalletError> for ResponseError {
-    fn from(error: ethers::signers::WalletError) -> Self {
+impl From<k256::ecdsa::Error> for ResponseError {
+    fn from(error: k256::ecdsa::Error) -> Self {
         ResponseError {
             message: error.to_string(),
-            status: StatusCode::BAD_REQUEST,
+            status: StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }
-/**
- * 链接自定义rpc签名
- */
-// impl From<ethers::middleware::signer::SignerMiddlewareError<ethers::providers::Provider<ethers::prelude::Http>,ethers::signers::Wallet<ecdsa::signing::SigningKey<Secp256k1>>>> for ResponseError {
-//     fn from(error:ethers::signers::WalletError) -> Self {
-//         ResponseError {
-//             message: error.to_string(),
-//             status: StatusCode::BAD_REQUEST,
-//         }
-//     }
-// }
 
 /**
- * 获取nonce 错误
+ * 环境env读取失败
  */
-impl
-    From<
-        ethers::prelude::nonce_manager::NonceManagerError<
-            ethers::providers::Provider<ethers::prelude::Http>,
-        >,
-    > for ResponseError
-{
-    fn from(
-        error: ethers::prelude::nonce_manager::NonceManagerError<
-            ethers::providers::Provider<ethers::prelude::Http>,
-        >,
-    ) -> Self {
+impl From<std::env::VarError> for ResponseError {
+    fn from(error: std::env::VarError) -> Self {
         ResponseError {
             message: error.to_string(),
-            status: StatusCode::BAD_REQUEST,
+            status: StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }
-// impl From<ethers_middleware::gas_oracle::GasOracleError> for ResponseError {
-//     fn from(error:ethers_middleware::gas_oracle::GasOracleError>) -> Self {
-//         ResponseError {
-//             message: error.to_string(),
-//             status: StatusCode::BAD_REQUEST,
-//         }
-//     }
-// }
+ 
 impl From<aes_gcm::Error> for ResponseError {
     fn from(error: aes_gcm::Error) -> Self {
         ResponseError {
@@ -190,8 +154,6 @@ impl From<num_bigint::ParseBigIntError> for ResponseError {
     }
 }
 
-
-
 //  邮箱格式错误
 pub fn email_format_error() -> ResponseError {
     ResponseError {
@@ -200,13 +162,6 @@ pub fn email_format_error() -> ResponseError {
     }
 }
 
-//  邮箱格式错误
-pub fn env_error() -> ResponseError {
-    ResponseError {
-        message: String::from("Env is error"),
-        status: StatusCode::INTERNAL_SERVER_ERROR,
-    }
-}
 
 pub fn insufficient_account_balance_error() -> ResponseError {
     ResponseError {
@@ -294,12 +249,6 @@ pub fn timeout_error() -> ResponseError {
     }
 }
 
-/**
- * 为幽灵依赖准备
- */
-pub fn create_error(status: StatusCode, message: String) -> ResponseError {
-    ResponseError { status, message }
-}
 
 // /**
 //  * aes相关的once cell 缺失 错误 正常不会触发
