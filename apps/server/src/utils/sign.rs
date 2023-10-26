@@ -324,4 +324,41 @@ mod tests {
                     "f86e0a843b9aca0782520894a303721f08b85af1fdf7c57152b9e31d4bca397b884563918244f400008083026e6da08deb712ee29375222cdfa3acabb2da5fc77d73896cd2d8213ff76a287eb16d88a07b112fe2be3aa993d1b0a75947209d1c233e93989923b609edc5c3e5fcc9f067",hex::encode(result)
                 )
     }
+    #[test]
+    fn test_transaction_tx() {
+        let chain_id = num_bigint::BigUint::from_str("79653").unwrap();
+        let nonce = num_bigint::BigUint::from_str("1").unwrap();
+        let max_priority_fee_per_gas = num_bigint::BigUint::from_str("1500000000").unwrap();
+        let max_fee_per_gas = num_bigint::BigUint::from_str("1500000008").unwrap();
+        let gas_limit = num_bigint::BigUint::from_str("21000").unwrap();
+        let to = hex::decode("7be15c62e64458fb5e5ee32fed82692abf427d2c").unwrap();
+        let value = num_bigint::BigUint::from_str("3000000000000000000").unwrap();
+
+    
+
+        let result = sign(
+            hex::decode(
+                "f40bb21badf540a80c9cdadf38706408759786b6f991cfbc93556ac95baaf041".to_string(),
+            )
+            .unwrap()
+            .as_slice(),
+            SignTransactionRequest::Eip1559(SignEip1559transaction {
+                chain_id: chain_id.clone(),
+                to: to.clone(),
+                nonce: nonce.clone(),
+                gas_limit: gas_limit.clone(),
+                max_fee_per_gas: max_fee_per_gas.clone(),
+                max_priority_fee_per_gas: max_priority_fee_per_gas.clone(),
+                value: value.clone(),
+            }),
+        )
+        .unwrap();
+
+        // println!("raw:{}",hex::encode(result))
+        let hash = keccak256(&result);
+        let h = hash.finalize();
+        assert_eq!("3267e16968c2679c8132402277ef8296bc134e291bae05001eab6fbba61c016e",hex::encode(h))
+
+      
+    }
 }
